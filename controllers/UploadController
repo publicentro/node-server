@@ -1,0 +1,89 @@
+const path = require('path')
+const fs = require('fs')
+
+const {response} = require('express')
+const { v4: uuidv4 } = require('uuid');
+const { avatarUpdate } = require('../helpers/avatar_update');
+
+const uploadAvatar = async (req, res=response)=>{
+
+    const {model, id} = req.params
+
+    //validar modelos
+    const validModels =  [ "hospitals", "medics", "users" ]
+    if( !validModels.includes( model ) ){
+        return res.status(400).json({
+            ok: false,
+            msg: " Solo se permiten los modelos users/hospitals/medics "
+        })
+    }
+
+    //Validar que hay archivo
+    if (!req.files || Object.keys(req.files).length === 0) {
+        return res.status(400).json({
+            ok: false,
+            msg: 'No se especificó un archivo para subir.'
+        });
+      }
+    
+      //obtener archivo
+      const file = req.files.img
+      
+      //validar extension
+      const splitedName = file.name.split('.')
+      const ext = splitedName[splitedName.length - 1]
+      const validExt = ['jpg', 'JPG', 'jpeg', 'JPEG', 'gif', 'GIF', 'png', 'PNG', 'svg', 'SVG'];
+
+      if(!validExt.includes(ext)){
+        return res.status(400).json({
+            ok:false,
+            msg: "solo se aceptan arvchivos: jpg, gif, png o svg"
+        })
+      }
+
+      //generar nombre de archivo
+      const fileName = uuidv4() + '.'+ ext;
+
+      //generar el path del archivo
+      const path = `./uploads/${model}/${fileName}`     
+
+      //mover archivo
+      file.mv(path, (err)=> {
+        if (err){
+            console.log(err)
+            return res.status(500).json({
+                ok: false,
+                msg: "Algo salió mal al tratar de mover el archivo"
+            });
+        }
+      
+        //actualizar avatar       
+        avatarUpdate(model, id, path, fileName)
+
+
+        res.json({
+            ok: true,
+            msg: "Avatar guardado",
+            fileName
+        })
+    });     
+}
+
+const getAvatar = (req, res = response)=>{
+    const {model, file} = req.params
+
+    const filePath = path.join( __dirname, `../uploads/${model}/${file}` )
+
+    if(fs.existsSync(filePath)){
+        res.sendFile( filePath )        
+    }else{
+        const noImage = path.join( __dirname, `../uploads/no-img.jpg`)
+        res.sendFile( noImage ) 
+    }
+
+}
+
+module.exports = {
+    uploadAvatar,
+    getAvatar
+}

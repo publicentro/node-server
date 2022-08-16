@@ -4,15 +4,23 @@ const User = require('../models/user')
 const { jwtGen } = require('../helpers/jwt')
 
 
-const getUsers = async (req, res)=>{   
+const getUsers = async (req, res)=>{  
+    const page = Number(req.query.page) || 1;
+    const items = Number(req.query.items) || 5;
 
-    const users = await User.find() 
 
+    const[users, total ] = await Promise.all([
+        User.find()
+            .skip((page-1)*items)
+            .limit(items), 
+
+        User.count()
+    ])
     
     res.json({
         ok:true,
-        data: users,
-        uuid: req.uuid     
+        users,
+        total       
     })
 }
 
